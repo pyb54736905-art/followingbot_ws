@@ -1,0 +1,1 @@
+ament_cmake_symlink_install_targets("TARGET_FILES" "/home/parkmingwan/followingbot_ws/build/bldc_inwheel_driver_stub/vehicle_bridge_node" "TARGETS" "vehicle_bridge_node" "DESTINATION" "lib/bldc_inwheel_driver_stub")

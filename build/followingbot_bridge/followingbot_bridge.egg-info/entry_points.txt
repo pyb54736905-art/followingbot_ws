@@ -1,0 +1,5 @@
+[console_scripts]
+rpm_direct_serial_bridge = followingbot_bridge.rpm_direct_serial_bridge:main
+serial_bridge = followingbot_bridge.serial_bridge:main
+uwb_follower = followingbot_bridge.uwb_follower:main
+uwb_serial_bridge = followingbot_bridge.uwb_serial_bridge:main

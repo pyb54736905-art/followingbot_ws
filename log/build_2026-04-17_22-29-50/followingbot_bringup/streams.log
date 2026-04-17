@@ -1,0 +1,25 @@
+[1.736s] Invoking command in '/home/parkmingwan/followingbot_ws/build/followingbot_bringup': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com PYTHONPATH=/home/parkmingwan/followingbot_ws/build/followingbot_bringup/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/parkmingwan/followingbot_ws/install/followingbot_bringup/lib/python3.12/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /home/parkmingwan/followingbot_ws/build/followingbot_bringup/build --no-deps symlink_data
+[2.467s] running develop
+[2.922s] running egg_info
+[2.922s] creating followingbot_bringup.egg-info
+[2.953s] writing followingbot_bringup.egg-info/PKG-INFO
+[2.953s] writing dependency_links to followingbot_bringup.egg-info/dependency_links.txt
+[2.953s] writing requirements to followingbot_bringup.egg-info/requires.txt
+[2.954s] writing top-level names to followingbot_bringup.egg-info/top_level.txt
+[2.954s] writing manifest file 'followingbot_bringup.egg-info/SOURCES.txt'
+[3.027s] reading manifest file 'followingbot_bringup.egg-info/SOURCES.txt'
+[3.027s] writing manifest file 'followingbot_bringup.egg-info/SOURCES.txt'
+[3.075s] running build_ext
+[3.075s] Creating /home/parkmingwan/followingbot_ws/install/followingbot_bringup/lib/python3.12/site-packages/followingbot-bringup.egg-link (link to .)
+[3.076s] 
+[3.076s] Installed /home/parkmingwan/followingbot_ws/build/followingbot_bringup
+[3.076s] running symlink_data
+[3.076s] creating /home/parkmingwan/followingbot_ws/install/followingbot_bringup/share/ament_index
+[3.076s] creating /home/parkmingwan/followingbot_ws/install/followingbot_bringup/share/ament_index/resource_index
+[3.077s] creating /home/parkmingwan/followingbot_ws/install/followingbot_bringup/share/ament_index/resource_index/packages
+[3.077s] symbolically linking /home/parkmingwan/followingbot_ws/build/followingbot_bringup/resource/followingbot_bringup -> /home/parkmingwan/followingbot_ws/install/followingbot_bringup/share/ament_index/resource_index/packages
+[3.077s] symbolically linking /home/parkmingwan/followingbot_ws/build/followingbot_bringup/package.xml -> /home/parkmingwan/followingbot_ws/install/followingbot_bringup/share/followingbot_bringup
+[3.077s] creating /home/parkmingwan/followingbot_ws/install/followingbot_bringup/share/followingbot_bringup/launch
+[3.077s] symbolically linking /home/parkmingwan/followingbot_ws/build/followingbot_bringup/launch/step1_2_system.launch.py -> /home/parkmingwan/followingbot_ws/install/followingbot_bringup/share/followingbot_bringup/launch
+[3.078s] symbolically linking /home/parkmingwan/followingbot_ws/build/followingbot_bringup/launch/uwb_follow_system.launch.py -> /home/parkmingwan/followingbot_ws/install/followingbot_bringup/share/followingbot_bringup/launch
+[3.283s] Invoked command in '/home/parkmingwan/followingbot_ws/build/followingbot_bringup' returned '0': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com PYTHONPATH=/home/parkmingwan/followingbot_ws/build/followingbot_bringup/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/parkmingwan/followingbot_ws/install/followingbot_bringup/lib/python3.12/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /home/parkmingwan/followingbot_ws/build/followingbot_bringup/build --no-deps symlink_data

@@ -1,0 +1,4 @@
+source;share/bldc_inwheel_driver_stub/local_setup.bash
+source;share/bldc_inwheel_driver_stub/local_setup.dsv
+source;share/bldc_inwheel_driver_stub/local_setup.sh
+source;share/bldc_inwheel_driver_stub/local_setup.zsh

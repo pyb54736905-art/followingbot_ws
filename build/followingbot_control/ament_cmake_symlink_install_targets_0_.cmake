@@ -1,0 +1,1 @@
+ament_cmake_symlink_install_targets("TARGET_FILES" "/home/parkmingwan/followingbot_ws/build/followingbot_control/car_control_node" "TARGETS" "car_control_node" "DESTINATION" "lib/followingbot_control")
