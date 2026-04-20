@@ -26,22 +26,25 @@ def generate_launch_description():
             parameters=[
                 {'a0_topic': '/uwb_a0'},
                 {'a1_topic': '/uwb_a1'},
-                {'loop_hz': 10.0},
+                {'loop_hz': 20.0},
 
                 {'stop_distance_m': 0.50},
                 {'slow_distance_m': 1.20},
                 {'max_speed_mps': 0.45},
                 {'min_speed_mps': 0.10},
 
-                {'turn_steer_rad': 0.25},
-                {'straight_diff_m': 0.03},
-                {'turn_diff_m': 0.10},
+                {'turn_steer_rad': 0.20},
+                {'anchor_spacing_m': 0.35},
+                {'x_bias_m': -0.25},
+                {'center_half_width_m': 0.35},
+                {'max_lateral_error_m': 0.50},
+                {'dead_zone_ref_dist_m': 0.8},
 
-                {'ema_alpha': 0.15},
-                {'data_timeout_s': 0.80},
+                {'ema_alpha': 0.20},
+                {'data_timeout_s': 20.0},
                 {'invalid_max_m': 10.0},
 
-                {'steer_sign': 1.0},
+                {'steer_sign': -1.0},
             ]
         ),
 

@@ -23,7 +23,7 @@ def generate_launch_description():
             {'command_timeout_sec': 0.5},
             {'max_erpm_per_sec': 800.0},
             {'lpf_alpha': 0.25},
-            {'zero_erpm_band': 50.0},
+            {'zero_erpm_band': 50.0},   
             {'max_erpm': 6000.0},
 
             {'left_invert': False},
