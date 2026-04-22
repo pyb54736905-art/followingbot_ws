@@ -33,12 +33,11 @@ def generate_launch_description():
                 {'max_speed_mps': 0.45},
                 {'min_speed_mps': 0.10},
 
-                {'turn_steer_rad': 0.20},
+                {'turn_steer_rad': 0.40},
                 {'anchor_spacing_m': 0.35},
                 {'x_bias_m': -0.25},
-                {'center_half_width_m': 0.35},
-                {'max_lateral_error_m': 0.50},
-                {'dead_zone_ref_dist_m': 0.8},
+                {'center_half_angle_rad': 0.15},
+                {'max_steer_angle_rad': 0.45},
 
                 {'ema_alpha': 0.20},
                 {'data_timeout_s': 20.0},

@@ -21,9 +21,11 @@ class UwbFollowerNode(Node):
 
         self.declare_parameter('anchor_spacing_m', 0.35)
         self.declare_parameter('x_bias_m', 0.0)
-        self.declare_parameter('center_half_width_m', 0.175)
-        self.declare_parameter('max_lateral_error_m', 0.50)
-        self.declare_parameter('dead_zone_ref_dist_m', 0.8)
+
+        # 각도 기반 dead zone (rad) - 이 각도 이하면 직진
+        self.declare_parameter('center_half_angle_rad', 0.10)
+        # 이 각도 이상이면 최대 조향
+        self.declare_parameter('max_steer_angle_rad', 0.45)
 
         self.declare_parameter('ema_alpha', 0.30)
         self.declare_parameter('data_timeout_s', 20.0)
@@ -44,9 +46,8 @@ class UwbFollowerNode(Node):
 
         self.anchor_spacing_m = float(self.get_parameter('anchor_spacing_m').value)
         self.x_bias_m = float(self.get_parameter('x_bias_m').value)
-        self.center_half_width_m = float(self.get_parameter('center_half_width_m').value)
-        self.max_lateral_error_m = float(self.get_parameter('max_lateral_error_m').value)
-        self.dead_zone_ref_dist_m = float(self.get_parameter('dead_zone_ref_dist_m').value)
+        self.center_half_angle_rad = float(self.get_parameter('center_half_angle_rad').value)
+        self.max_steer_angle_rad = float(self.get_parameter('max_steer_angle_rad').value)
 
         self.ema_alpha = float(self.get_parameter('ema_alpha').value)
         self.data_timeout_s = float(self.get_parameter('data_timeout_s').value)
@@ -68,6 +69,7 @@ class UwbFollowerNode(Node):
         self.pub_steer = self.create_publisher(Float64, '/target_steer', 10)
         self.pub_avg = self.create_publisher(Float64, '/uwb_avg_dist', 10)
         self.pub_diff = self.create_publisher(Float64, '/uwb_lr_diff', 10)
+        self.pub_theta = self.create_publisher(Float64, '/uwb_theta', 10)
         self.pub_zone = self.create_publisher(String, '/uwb_position_zone', 10)
 
         period = 1.0 / loop_hz
@@ -147,8 +149,13 @@ class UwbFollowerNode(Node):
         x_raw = ((a0 * a0) - (a1 * a1) + (d * d)) / (2.0 * d)
         x = x_raw - self.x_bias_m
 
+        # 전방 거리 y 추정 후 태그 방향 각도 계산
+        y = math.sqrt(max(0.0, avg * avg - x * x))
+        theta = math.atan2(x, max(0.01, y))
+
         self.pub_avg.publish(Float64(data=avg))
         self.pub_diff.publish(Float64(data=x))
+        self.pub_theta.publish(Float64(data=theta))
 
         if avg <= self.stop_distance_m:
             target_speed = 0.0
@@ -158,23 +165,19 @@ class UwbFollowerNode(Node):
             ratio = (avg - self.stop_distance_m) / (self.slow_distance_m - self.stop_distance_m)
             target_speed = self.min_speed_mps + ratio * (self.max_speed_mps - self.min_speed_mps)
 
-        dist_scale = max(1.0, avg / self.dead_zone_ref_dist_m)
-        dynamic_half_width = self.center_half_width_m * dist_scale
-
         if target_speed <= 0.01:
             target_steer = 0.0
             zone = 'STOP'
-        elif abs(x) <= dynamic_half_width:
+        elif abs(theta) <= self.center_half_angle_rad:
             target_steer = 0.0
             zone = 'CENTER'
         else:
-            excess = abs(x) - dynamic_half_width
-            denom = max(1e-6, self.max_lateral_error_m - dynamic_half_width)
-            gain = excess / denom
-            gain = max(0.0, min(1.0, gain))
+            excess = abs(theta) - self.center_half_angle_rad
+            denom = max(1e-6, self.max_steer_angle_rad - self.center_half_angle_rad)
+            gain = min(1.0, excess / denom)
             steer_mag = gain * self.turn_steer_rad
 
-            if x > 0.0:
+            if theta > 0.0:
                 target_steer = self.steer_sign * steer_mag
                 zone = 'RIGHT'
             else:
@@ -182,12 +185,11 @@ class UwbFollowerNode(Node):
                 zone = 'LEFT'
 
         self.publish_cmd(target_speed, target_steer)
-
         self.pub_zone.publish(String(data=zone))
 
         self.get_logger().info(
             f'a0={a0:.3f}, a1={a1:.3f}, avg={avg:.3f}, '
-            f'x_raw={x_raw:.3f}, x={x:.3f}, dz={dynamic_half_width:.3f}, '
+            f'x={x:.3f}, theta={math.degrees(theta):.1f}deg, '
             f'zone={zone}, spd={target_speed:.3f}, steer={target_steer:.3f}',
             throttle_duration_sec=0.5
         )
