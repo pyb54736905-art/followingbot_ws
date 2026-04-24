@@ -13,6 +13,7 @@ class UwbFollowerNode(Node):
         self.declare_parameter('loop_hz', 5.0)
 
         self.declare_parameter('stop_distance_m', 0.60)
+        self.declare_parameter('resume_distance_m', 0.80)
         self.declare_parameter('slow_distance_m', 1.20)
         self.declare_parameter('max_speed_mps', 0.80)
         self.declare_parameter('min_speed_mps', 0.25)
@@ -27,17 +28,19 @@ class UwbFollowerNode(Node):
         # 이 각도 이상이면 최대 조향
         self.declare_parameter('max_steer_angle_rad', 0.45)
 
-        self.declare_parameter('ema_alpha', 0.30)
+        self.declare_parameter('ema_alpha', 0.35)
         self.declare_parameter('data_timeout_s', 20.0)
         self.declare_parameter('invalid_max_m', 10.0)
 
         self.declare_parameter('steer_sign', 1.0)
+        self.declare_parameter('warmup_samples', 10)
 
         self.a0_topic = self.get_parameter('a0_topic').value
         self.a1_topic = self.get_parameter('a1_topic').value
         loop_hz = float(self.get_parameter('loop_hz').value)
 
         self.stop_distance_m = float(self.get_parameter('stop_distance_m').value)
+        self.resume_distance_m = float(self.get_parameter('resume_distance_m').value)
         self.slow_distance_m = float(self.get_parameter('slow_distance_m').value)
         self.max_speed_mps = float(self.get_parameter('max_speed_mps').value)
         self.min_speed_mps = float(self.get_parameter('min_speed_mps').value)
@@ -53,11 +56,16 @@ class UwbFollowerNode(Node):
         self.data_timeout_s = float(self.get_parameter('data_timeout_s').value)
         self.invalid_max_m = float(self.get_parameter('invalid_max_m').value)
         self.steer_sign = float(self.get_parameter('steer_sign').value)
+        self.warmup_samples = int(self.get_parameter('warmup_samples').value)
 
         self.a0_raw = None
         self.a1_raw = None
         self.a0_f = None
         self.a1_f = None
+        self.a0_count = 0
+        self.a1_count = 0
+        self.is_stopped = True
+        self.resume_steer_count = 0
 
         self.last_a0_time = None
         self.last_a1_time = None
@@ -82,6 +90,7 @@ class UwbFollowerNode(Node):
         if self.is_valid(v):
             self.a0_raw = v
             self.a0_f = self.ema(self.a0_f, v)
+            self.a0_count += 1
             self.last_a0_time = self.get_clock().now()
 
     def a1_callback(self, msg: Float64):
@@ -89,6 +98,7 @@ class UwbFollowerNode(Node):
         if self.is_valid(v):
             self.a1_raw = v
             self.a1_f = self.ema(self.a1_f, v)
+            self.a1_count += 1
             self.last_a1_time = self.get_clock().now()
 
     def is_valid(self, v: float) -> bool:
@@ -117,6 +127,15 @@ class UwbFollowerNode(Node):
             self.get_logger().warn(
                 'a0_f or a1_f is None -> STOP',
                 throttle_duration_sec=1.0
+            )
+            return
+
+        if self.a0_count < self.warmup_samples or self.a1_count < self.warmup_samples:
+            self.pub_zone.publish(String(data='WARMUP'))
+            self.publish_cmd(0.0, 0.0)
+            self.get_logger().info(
+                f'warming up: a0={self.a0_count}/{self.warmup_samples}, a1={self.a1_count}/{self.warmup_samples}',
+                throttle_duration_sec=0.5
             )
             return
 
@@ -158,16 +177,26 @@ class UwbFollowerNode(Node):
         self.pub_theta.publish(Float64(data=theta))
 
         if avg <= self.stop_distance_m:
+            self.is_stopped = True
+            self.resume_steer_count = 0
             target_speed = 0.0
-        elif avg >= self.slow_distance_m:
-            target_speed = self.max_speed_mps
+        elif self.is_stopped and avg < self.resume_distance_m:
+            target_speed = 0.0
         else:
-            ratio = (avg - self.stop_distance_m) / (self.slow_distance_m - self.stop_distance_m)
-            target_speed = self.min_speed_mps + ratio * (self.max_speed_mps - self.min_speed_mps)
+            self.is_stopped = False
+            self.resume_steer_count += 1
+            if avg >= self.slow_distance_m:
+                target_speed = self.max_speed_mps
+            else:
+                ratio = (avg - self.stop_distance_m) / (self.slow_distance_m - self.stop_distance_m)
+                target_speed = self.min_speed_mps + ratio * (self.max_speed_mps - self.min_speed_mps)
 
         if target_speed <= 0.01:
             target_steer = 0.0
             zone = 'STOP'
+        elif self.resume_steer_count <= self.warmup_samples:
+            target_steer = 0.0
+            zone = 'RESUME'
         elif abs(theta) <= self.center_half_angle_rad:
             target_steer = 0.0
             zone = 'CENTER'

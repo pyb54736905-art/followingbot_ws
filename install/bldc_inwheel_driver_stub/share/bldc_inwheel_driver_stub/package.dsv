@@ -1,8 +1,0 @@
-source;share/bldc_inwheel_driver_stub/hook/cmake_prefix_path.ps1
-source;share/bldc_inwheel_driver_stub/hook/cmake_prefix_path.dsv
-source;share/bldc_inwheel_driver_stub/hook/cmake_prefix_path.sh
-source;share/bldc_inwheel_driver_stub/local_setup.bash
-source;share/bldc_inwheel_driver_stub/local_setup.dsv
-source;share/bldc_inwheel_driver_stub/local_setup.ps1
-source;share/bldc_inwheel_driver_stub/local_setup.sh
-source;share/bldc_inwheel_driver_stub/local_setup.zsh

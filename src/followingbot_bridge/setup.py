@@ -21,10 +21,13 @@ setup(
         'test': ['pytest'],
     },
     entry_points={
-    'console_scripts': [
-'rpm_direct_serial_bridge = followingbot_bridge.rpm_direct_serial_bridge:main',
-        'uwb_serial_bridge = followingbot_bridge.uwb_serial_bridge:main',
-        'uwb_follower = followingbot_bridge.uwb_follower:main',
+        'console_scripts': [
+            'rpm_direct_serial_bridge = followingbot_bridge.rpm_direct_serial_bridge:main',
+            'uwb_serial_bridge = followingbot_bridge.uwb_serial_bridge:main',
+            'uwb_follower = followingbot_bridge.uwb_follower:main',
+            'wheel_odom_node = followingbot_bridge.wheel_odom_node:main',
+            'uwb_path_gen_node = followingbot_bridge.uwb_path_gen_node:main',
+            'monitor_node = followingbot_bridge.monitor_node:main',
         ],
     },
 )

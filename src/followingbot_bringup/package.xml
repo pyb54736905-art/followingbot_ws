@@ -7,10 +7,12 @@
   <maintainer email="parkmingwan@example.com">parkmingwan</maintainer>
   <license>Apache-2.0</license>
 
-  <buildtool_depend>ament_python</buildtool_depend>
-
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
+  <exec_depend>followingbot_bridge</exec_depend>
+  <exec_depend>followingbot_control</exec_depend>
+  <exec_depend>followingbot_dwa</exec_depend>
+  <exec_depend>sllidar_ros2</exec_depend>
 
   <export>
     <build_type>ament_python</build_type>

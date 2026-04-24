@@ -1,1 +1,0 @@
-/home/parkmingwan/followingbot_ws/src/followingbot_bringup/launch/step1_2_system.launch.py

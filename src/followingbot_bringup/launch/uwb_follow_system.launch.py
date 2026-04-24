@@ -28,18 +28,20 @@ def generate_launch_description():
                 {'a1_topic': '/uwb_a1'},
                 {'loop_hz': 20.0},
 
-                {'stop_distance_m': 0.50},
+                {'stop_distance_m': 0.40},
+                {'resume_distance_m': 1.00},
                 {'slow_distance_m': 1.20},
-                {'max_speed_mps': 0.45},
-                {'min_speed_mps': 0.10},
+                {'max_speed_mps': 0.70},
+                {'min_speed_mps': 0.30},
 
                 {'turn_steer_rad': 0.40},
                 {'anchor_spacing_m': 0.35},
-                {'x_bias_m': -0.25},
+                {'x_bias_m': 0.05},
                 {'center_half_angle_rad': 0.15},
                 {'max_steer_angle_rad': 0.45},
 
-                {'ema_alpha': 0.20},
+                {'ema_alpha': 0.35},
+                {'warmup_samples': 10},
                 {'data_timeout_s': 20.0},
                 {'invalid_max_m': 10.0},
 

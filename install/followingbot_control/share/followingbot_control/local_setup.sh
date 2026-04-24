@@ -1,1 +1,0 @@
-/home/parkmingwan/followingbot_ws/build/followingbot_control/ament_cmake_environment_hooks/local_setup.sh

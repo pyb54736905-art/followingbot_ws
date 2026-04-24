@@ -1,8 +1,0 @@
-Metadata-Version: 2.1
-Name: followingbot-bridge
-Version: 0.0.0
-Summary: Serial bridge for followingbot
-Maintainer: parkmingwan
-Maintainer-email: pyb54736905@gmail.com
-License: TODO: License declaration
-Provides-Extra: test
