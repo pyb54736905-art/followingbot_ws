@@ -60,6 +60,8 @@ class DWAControllerNode(Node):
 
         # ── 동작 설정 ────────────────────────────────────────────────
         self.declare_parameter('stop_distance_m', 0.50)
+        self.declare_parameter('slow_distance_m', 1.20)
+        self.declare_parameter('min_speed_mps', 0.10)
         self.declare_parameter('loop_hz', 20.0)
         self.declare_parameter('data_timeout_s', 1.0)
         self.declare_parameter('obstacle_range_max_m', 3.5)
@@ -125,6 +127,8 @@ class DWAControllerNode(Node):
         self.w_clearance      = float(g('w_clearance').value)
         self.w_speed          = float(g('w_speed').value)
         self.stop_distance_m  = float(g('stop_distance_m').value)
+        self.slow_distance_m  = float(g('slow_distance_m').value)
+        self.min_speed_mps    = float(g('min_speed_mps').value)
         self.loop_hz          = float(g('loop_hz').value)
         self.data_timeout_s   = float(g('data_timeout_s').value)
         self.obs_range_max    = float(g('obstacle_range_max_m').value)
@@ -227,8 +231,22 @@ class DWAControllerNode(Node):
         dy = traj[:, 1:2] - obs[:, 1]
         return float(np.sqrt(dx * dx + dy * dy).min())
 
+    # ── UWB 거리 기반 속도 상한 ──────────────────────────────────────
+    def _dist_to_speed_cap(self, dist: float) -> float:
+        """
+        uwb_follower 와 동일한 감속 구간 기준으로 속도 상한 계산.
+        DWA 모드에서도 사람과의 거리에 따라 적절히 감속.
+        """
+        if dist <= self.stop_distance_m:
+            return 0.0
+        if dist >= self.slow_distance_m:
+            return self.max_speed_mps
+        ratio = ((dist - self.stop_distance_m)
+                 / (self.slow_distance_m - self.stop_distance_m))
+        return self.min_speed_mps + ratio * (self.max_speed_mps - self.min_speed_mps)
+
     # ── DWA 핵심 알고리즘 ────────────────────────────────────────────
-    def _dwa(self, obs: np.ndarray):
+    def _dwa(self, obs: np.ndarray, speed_cap: float):
         """
         동적 윈도우 내 (v, δ) 샘플링 → 최적 명령 반환
         반환: (best_v, best_steer) 또는 장애물 회피 불가 시 (0.0, 0.0)
@@ -236,7 +254,8 @@ class DWAControllerNode(Node):
         dw = self.dw_time_s
 
         # 동적 윈도우: 현재 속도/조향 + 가속도 한계로 제한
-        v_hi = min(self.max_speed_mps,  self.current_speed + self.max_accel_mps2 * dw)
+        # speed_cap: UWB 거리 기반 상한 적용
+        v_hi = min(speed_cap,  self.current_speed + self.max_accel_mps2 * dw)
         v_lo = max(0.0,                 self.current_speed - self.max_accel_mps2 * dw)
         s_hi = min(self.max_steer_rad,  self.current_steer + self.max_steer_rate  * dw)
         s_lo = max(-self.max_steer_rad, self.current_steer - self.max_steer_rate  * dw)
@@ -300,8 +319,9 @@ class DWAControllerNode(Node):
             self.current_steer = 0.0
             return
 
-        # DWA 실행
-        best_v, best_s = self._dwa(obs)
+        # 거리 기반 속도 상한 계산 후 DWA 실행
+        speed_cap = self._dist_to_speed_cap(self.goal_dist)
+        best_v, best_s = self._dwa(obs, speed_cap)
 
         self.current_speed = best_v
         self.current_steer = best_s

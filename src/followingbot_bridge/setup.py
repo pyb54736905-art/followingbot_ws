@@ -28,6 +28,7 @@ setup(
             'wheel_odom_node = followingbot_bridge.wheel_odom_node:main',
             'uwb_path_gen_node = followingbot_bridge.uwb_path_gen_node:main',
             'monitor_node = followingbot_bridge.monitor_node:main',
+            'cmd_arbitrator_node = followingbot_bridge.cmd_arbitrator_node:main',
         ],
     },
 )
