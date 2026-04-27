@@ -77,6 +77,9 @@ class RPMDirectSerialBridge(Node):
         # ----------------------------
         self.target_speed_mps = 0.0
         self.target_steer_rad = 0.0
+        self.filtered_steer_rad = 0.0
+        self.current_left_erpm = 0.0
+        self.current_right_erpm = 0.0
         self.last_cmd_rx_time = self.get_clock().now()
 
 
@@ -219,9 +222,6 @@ class RPMDirectSerialBridge(Node):
         left_speed = center_speed_mps * (left_radius / center_radius)
         right_speed = center_speed_mps * (right_radius / center_radius)
 
-        if steer_rad < 0.0:
-            left_speed, right_speed = right_speed, left_speed
-
         if center_speed_mps < 0.0:
             left_speed = -abs(left_speed)
             right_speed = -abs(right_speed)
@@ -267,6 +267,11 @@ class RPMDirectSerialBridge(Node):
             target_speed = self.target_speed_mps
             target_steer = self.target_steer_rad
 
+        # 조향 LPF: 급격한 steer 변화를 완화해 진동/슬립 방지
+        self.filtered_steer_rad = self.low_pass(self.filtered_steer_rad, target_steer)
+        target_steer = self.filtered_steer_rad
+
+        # 에커만 계산
         left_speed_mps, right_speed_mps = self.compute_rear_wheel_speeds(
             target_speed, target_steer
         )
@@ -279,9 +284,17 @@ class RPMDirectSerialBridge(Node):
         if self.right_invert:
             right_target_erpm *= -1.0
 
-        # deadband는 목표값에만 적용
-        left_target_erpm = self.apply_target_deadband_and_limit(left_target_erpm)
-        right_target_erpm = self.apply_target_deadband_and_limit(right_target_erpm)
+        # deadband는 중심 속도 기준으로만 판단 — 개별 바퀴에 적용 시
+        # 내측 바퀴가 제로화되어 외측만 돌면서 과도하게 꺾이는 현상 발생
+        center_erpm = self.mps_to_erpm(target_speed)
+        if abs(center_erpm) < self.zero_erpm_band:
+            left_target_erpm = 0.0
+            right_target_erpm = 0.0
+        else:
+            left_target_erpm  = max(-self.max_erpm, min(self.max_erpm, left_target_erpm))
+            right_target_erpm = max(-self.max_erpm, min(self.max_erpm, right_target_erpm))
+
+        # ERPM slew는 VESC 내부 가속 제어에 맡김 (외부 slew 시 극저속 명령으로 모터 미작동)
 
         if self.debug_log:
             elapsed = (now - self.last_debug_print_time).nanoseconds * 1e-9

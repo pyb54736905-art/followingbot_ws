@@ -242,7 +242,6 @@ private:
     }
 
     if (std::fabs(target_speed_mps_) < speed_deadband_) v_cmd_ = 0.0;
-    if (std::fabs(v_cmd_)            < speed_deadband_) v_cmd_ = 0.0;
 
     // ── 발행 ────────────────────────────────────────────────────
     {

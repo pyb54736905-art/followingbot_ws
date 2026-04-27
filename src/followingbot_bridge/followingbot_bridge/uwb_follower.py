@@ -34,6 +34,8 @@ class UwbFollowerNode(Node):
 
         self.declare_parameter('steer_sign', 1.0)
         self.declare_parameter('warmup_samples', 10)
+        # 이 각도 초과 시 정지 (태그가 너무 옆으로 벗어남)
+        self.declare_parameter('stop_angle_rad', 1.57)
 
         self.a0_topic = self.get_parameter('a0_topic').value
         self.a1_topic = self.get_parameter('a1_topic').value
@@ -57,6 +59,7 @@ class UwbFollowerNode(Node):
         self.invalid_max_m = float(self.get_parameter('invalid_max_m').value)
         self.steer_sign = float(self.get_parameter('steer_sign').value)
         self.warmup_samples = int(self.get_parameter('warmup_samples').value)
+        self.stop_angle_rad = float(self.get_parameter('stop_angle_rad').value)
 
         self.a0_raw = None
         self.a1_raw = None
@@ -170,11 +173,24 @@ class UwbFollowerNode(Node):
 
         # 전방 거리 y 추정 후 태그 방향 각도 계산
         y = math.sqrt(max(0.0, avg * avg - x * x))
-        theta = math.atan2(x, max(0.01, y))
+        theta_raw = math.atan2(x, max(0.01, y))
+
+        # a0/a1 거리에 이미 EMA가 적용됐으므로 theta 이중 필터 제거 (지연 감소)
+        theta = theta_raw
 
         self.pub_avg.publish(Float64(data=avg))
         self.pub_diff.publish(Float64(data=x))
         self.pub_theta.publish(Float64(data=theta))
+
+        # 태그가 너무 측면으로 벗어나면 정지
+        if abs(theta) > self.stop_angle_rad:
+            self.publish_cmd(0.0, 0.0)
+            self.pub_zone.publish(String(data='ANGLE_STOP'))
+            self.get_logger().warn(
+                f'ANGLE_STOP: theta={math.degrees(theta):.1f}deg > {math.degrees(self.stop_angle_rad):.1f}deg',
+                throttle_duration_sec=0.5
+            )
+            return
 
         if avg <= self.stop_distance_m:
             self.is_stopped = True

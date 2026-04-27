@@ -75,16 +75,18 @@ def generate_launch_description():
                 {'max_speed_mps': 0.45},
                 {'min_speed_mps': 0.10},
 
-                {'turn_steer_rad': 0.40},
+                {'turn_steer_rad': 0.35},
                 {'anchor_spacing_m': 0.35},
-                {'x_bias_m': -0.25},
-                {'center_half_angle_rad': 0.15},
-                {'max_steer_angle_rad': 0.45},
+                {'x_bias_m': -0.16},
+                {'center_half_angle_rad': 0.25},
+                {'max_steer_angle_rad': 0.35},
 
-                {'ema_alpha': 0.20},
+                {'ema_alpha': 0.30},
                 {'data_timeout_s': 20.0},
                 {'invalid_max_m': 10.0},
                 {'steer_sign': -1.0},
+                # 태그 방향이 이 각도(deg→rad) 초과 시 정지
+                {'stop_angle_rad': 1.22},  # 70도
             ]
         ),
 
@@ -120,6 +122,7 @@ def generate_launch_description():
                 {'frame_id': 'odom'},
                 {'theta_sign': -1.0},
                 {'data_timeout_s': 1.0},
+                {'dir_ema_alpha': 0.25},
             ]
         ),
 
@@ -138,7 +141,7 @@ def generate_launch_description():
             parameters=[
                 {'wheelbase': 0.48},
                 {'stanley_k': 1.0},
-                {'max_steer_deg': 28.0},
+                {'max_steer_deg': 20.0},
 
                 {'use_dynamic_speed': True},
                 {'dynamic_speed_timeout': 0.5},
@@ -201,33 +204,35 @@ def generate_launch_description():
             parameters=[
                 {'wheelbase_m': 0.48},
                 {'max_speed_mps': 0.45},
-                {'max_steer_rad': 0.40},
-                {'robot_radius_m': 0.25},
+                {'max_steer_rad': 0.35},
+                {'robot_radius_m': 0.20},
 
                 {'max_accel_mps2': 0.30},
                 {'max_steer_rate_rads': 0.80},
                 {'dw_time_s': 0.5},
 
-                {'predict_time_s': 2.0},
+                {'predict_time_s': 1.2},
                 {'dt_sim_s': 0.1},
 
                 {'n_v_samples': 5},
-                {'n_steer_samples': 11},
+                {'n_steer_samples': 21},
 
-                {'w_heading': 0.5},
-                {'w_clearance': 0.3},
+                {'w_heading': 0.3},
+                {'w_clearance': 0.5},
                 {'w_speed': 0.2},
 
                 {'stop_distance_m': 0.50},
                 {'slow_distance_m': 1.20},
-                {'min_speed_mps': 0.10},
+                {'min_speed_mps': 0.30},
                 {'loop_hz': 20.0},
                 {'data_timeout_s': 1.0},
-                {'obstacle_range_max_m': 3.5},
+                {'obstacle_range_max_m': 2.0},
+                # 로봇 프레임이 LiDAR에 잡히는 경우 제거 (0.21m에서 자체 감지됨)
+                {'obstacle_range_min_m': 0.30},
 
                 {'goal_theta_sign': -1.0},
 
-                {'tag_exclusion_half_angle_deg': 30.0},
+                {'tag_exclusion_half_angle_deg': 15.0},
                 {'tag_exclusion_dist_margin_m': 0.5},
             ]
         ),
@@ -242,22 +247,29 @@ def generate_launch_description():
             output='screen',
             parameters=[
                 # 전방 장애물이 이 거리 이하이면 DWA 모드로 전환
-                {'obstacle_switch_m': 1.5},
+                {'obstacle_switch_m': 0.7},
                 # 이 거리 이상으로 복귀해야 Stanley 모드로 복귀 (히스테리시스)
-                {'obstacle_clear_m': 2.0},
+                {'obstacle_clear_m': 1.4},
                 # 전방 cone 각도 (좌우 합산, deg)
-                {'forward_cone_deg': 60.0},
+                {'forward_cone_deg': 40.0},
                 {'loop_hz': 20.0},
                 {'data_timeout_s': 0.5},
+                {'enable_emstop': True},
+                {'enable_stuck_protection': False},
+                {'enable_narrow_slowdown': False},
                 # DWA 와 동일한 태그 착용자 제외 설정
-                {'tag_exclusion_half_angle_deg': 30.0},
+                {'tag_exclusion_half_angle_deg': 15.0},
                 {'tag_exclusion_dist_margin_m': 0.5},
+                # 로봇 프레임이 LiDAR에 잡히는 경우 제거 (0.21m에서 자체 감지됨)
+                {'scan_range_min_m': 0.30},
 
                 # ── 비상 정지 구역 ─────────────────────────────────
                 # 전방 이 거리 이내 장애물 → 즉시 정지 (태그 무관)
-                {'emstop_dist_m': 0.25},
+                {'emstop_dist_m': 0.50},
                 # 비상 정지 감지 전방 cone 폭 (좌우 합산 deg)
-                {'emstop_cone_deg': 30.0},
+                {'emstop_cone_deg': 20.0},
+                # scan_range_min_m 과 동일하게 설정 (로봇 프레임은 scan_range_min_m 으로 이미 필터링됨)
+                {'emstop_range_min_m': 0.30},
 
                 # ── 협로 속도 감속 ─────────────────────────────────
                 # 좌/우 측면 여유가 이 이하이면 속도 감소 시작
@@ -297,14 +309,14 @@ def generate_launch_description():
                 {'tx_rate_hz': 100.0},
                 {'command_timeout_sec': 0.5},
                 {'max_erpm_per_sec': 800.0},
-                {'lpf_alpha': 0.25},
-                {'zero_erpm_band': 50.0},
+                {'lpf_alpha': 0.20},
+                {'zero_erpm_band': 80.0},
                 {'max_erpm': 6000.0},
 
                 {'left_invert': False},
                 {'right_invert': False},
 
-                {'max_steer_rad': 0.49},
+                {'max_steer_rad': 0.35},
                 {'debug_log': False},
             ]
         ),

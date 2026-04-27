@@ -41,11 +41,19 @@ class CmdArbitratorNode(Node):
         self.declare_parameter('data_timeout_s', 0.5)
         self.declare_parameter('tag_exclusion_half_angle_deg', 30.0)
         self.declare_parameter('tag_exclusion_dist_margin_m', 0.5)
+        # 로봇 자체 프레임이 LiDAR에 잡히는 경우 이 거리 이하 포인트 무시
+        self.declare_parameter('scan_range_min_m', 0.0)
+        # 테스트용 안전기능 토글
+        self.declare_parameter('enable_emstop', True)
+        self.declare_parameter('enable_stuck_protection', True)
+        self.declare_parameter('enable_narrow_slowdown', True)
 
         # ── 비상 정지 파라미터 ───────────────────────────────────────
         self.declare_parameter('emstop_dist_m', 0.25)
         # 비상 정지 감지 cone 폭 (좌우 합산 deg) - 좁게 유지해야 오인식 방지
         self.declare_parameter('emstop_cone_deg', 30.0)
+        # 로봇 자체 프레임 제외용 emstop 전용 최솟값 (scan_range_min_m 보다 크게 설정)
+        self.declare_parameter('emstop_range_min_m', 0.0)
 
         # ── 협로 속도 감속 파라미터 ──────────────────────────────────
         # 좌/우 측면 여유가 이 이하로 좁아지면 속도 감소 시작
@@ -71,9 +79,14 @@ class CmdArbitratorNode(Node):
         self.data_timeout_s    = float(g('data_timeout_s').value)
         self.tag_excl_half     = math.radians(float(g('tag_exclusion_half_angle_deg').value))
         self.tag_excl_margin   = float(g('tag_exclusion_dist_margin_m').value)
+        self.scan_range_min    = float(g('scan_range_min_m').value)
+        self.enable_emstop     = bool(g('enable_emstop').value)
+        self.enable_stuck      = bool(g('enable_stuck_protection').value)
+        self.enable_narrow     = bool(g('enable_narrow_slowdown').value)
 
         self.emstop_dist_m    = float(g('emstop_dist_m').value)
         self.emstop_cone_half = math.radians(float(g('emstop_cone_deg').value) * 0.5)
+        self.emstop_range_min = float(g('emstop_range_min_m').value)
 
         self.narrow_warn_m  = float(g('narrow_warn_m').value)
         self.narrow_stop_m  = float(g('narrow_stop_m').value)
@@ -126,7 +139,9 @@ class CmdArbitratorNode(Node):
             f'switch={self.obstacle_switch_m}m clear={self.obstacle_clear_m}m '
             f'emstop={self.emstop_dist_m}m '
             f'narrow_warn={self.narrow_warn_m}m narrow_stop={self.narrow_stop_m}m '
-            f'stuck_timeout={self.stuck_timeout}s'
+            f'stuck_timeout={self.stuck_timeout}s '
+            f'flags(emstop={self.enable_emstop}, '
+            f'stuck={self.enable_stuck}, narrow={self.enable_narrow})'
         )
 
     # ── 콜백 ─────────────────────────────────────────────────────────
@@ -191,7 +206,7 @@ class CmdArbitratorNode(Node):
         min_dist = float('inf')
         angle = scan.angle_min
         for r in scan.ranges:
-            if scan.range_min < r < scan.range_max:
+            if self.scan_range_min < r < scan.range_max:
                 if abs(angle) < self.forward_cone_half and not self._is_tag(angle, r):
                     min_dist = min(min_dist, r)
             angle += scan.angle_increment
@@ -204,9 +219,10 @@ class CmdArbitratorNode(Node):
         태그 착용자 포함 모든 장애물에 반응 (안전 최우선).
         """
         scan = self.scan
+        range_min = max(self.scan_range_min, self.emstop_range_min)
         angle = scan.angle_min
         for r in scan.ranges:
-            if scan.range_min < r < scan.range_max:
+            if range_min < r < scan.range_max:
                 if abs(angle) < self.emstop_cone_half and r < self.emstop_dist_m:
                     return True
             angle += scan.angle_increment
@@ -283,7 +299,7 @@ class CmdArbitratorNode(Node):
             return
 
         # ── 1. 비상 정지 (최우선) ────────────────────────────────────
-        if self._check_emstop():
+        if self.enable_emstop and self._check_emstop():
             self.stuck_since = None
             self.stuck_latched = False
             self._publish(0.0, 0.0, 'EMSTOP', 'EMSTOP')
@@ -312,9 +328,6 @@ class CmdArbitratorNode(Node):
             if not self._fresh(self.last_dwa_t):
                 self._publish(0.0, 0.0, 'DWA_TIMEOUT')
                 return
-            if self.dwa_state == 'DWA_BLOCKED':
-                self._publish(0.0, 0.0, 'DWA_BLOCKED')
-                return
             speed, steer = self.dwa_speed, self.dwa_steer
             mode_str = f'DWA:{self.dwa_state}'
         else:
@@ -325,7 +338,7 @@ class CmdArbitratorNode(Node):
             mode_str = 'STANLEY'
 
         # ── 2. 끼임 감지 ─────────────────────────────────────────────
-        if self._check_stuck(speed):
+        if self.enable_stuck and self._check_stuck(speed):
             self._publish(0.0, steer, mode_str, 'STUCK')
             self.get_logger().warn(
                 'STUCK: commanded but not moving — waiting for clearance',
@@ -334,10 +347,13 @@ class CmdArbitratorNode(Node):
             return
 
         # ── 3. 협로 속도 감속 ────────────────────────────────────────
-        narrow_factor = self._narrow_speed_factor()
-        if narrow_factor < 1.0:
-            safety_str = 'NARROW_STOP' if narrow_factor == 0.0 else 'NARROW'
-            speed *= narrow_factor
+        if self.enable_narrow:
+            narrow_factor = self._narrow_speed_factor()
+            if narrow_factor < 1.0:
+                safety_str = 'NARROW_STOP' if narrow_factor == 0.0 else 'NARROW'
+                speed *= narrow_factor
+            else:
+                safety_str = 'SAFE'
         else:
             safety_str = 'SAFE'
 

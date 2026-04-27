@@ -29,6 +29,8 @@ class UwbPathGenNode(Node):
         # DWA의 goal_theta_sign 과 동일값 사용
         self.declare_parameter('theta_sign', -1.0)
         self.declare_parameter('data_timeout_s', 1.0)
+        # 경로 방향 theta EMA 알파 (낮을수록 강한 스무딩, uwb_follower의 theta EMA 이후 2차 필터)
+        self.declare_parameter('dir_ema_alpha', 0.15)
 
         self.path_length_m = float(self.get_parameter('path_length_m').value)
         self.n_waypoints = int(self.get_parameter('n_waypoints').value)
@@ -36,12 +38,14 @@ class UwbPathGenNode(Node):
         self.frame_id = self.get_parameter('frame_id').value
         self.theta_sign = float(self.get_parameter('theta_sign').value)
         self.data_timeout_s = float(self.get_parameter('data_timeout_s').value)
+        self.dir_ema_alpha = float(self.get_parameter('dir_ema_alpha').value)
 
         self.odom: Odometry | None = None
         self.uwb_theta = 0.0
         self.uwb_dist = 0.0
         self.last_odom_t = None
         self.last_uwb_t = None
+        self._dir_ema: float | None = None  # 경로 방향각 EMA 상태
 
         self.pub_path = self.create_publisher(Path, '/path', 10)
 
@@ -89,7 +93,21 @@ class UwbPathGenNode(Node):
 
         # theta_sign 적용: uwb theta → 로봇 로컬 프레임 각도
         # → odom 프레임 목표 방향으로 변환
-        target_angle = robot_yaw + self.theta_sign * self.uwb_theta
+        raw_angle = robot_yaw + self.theta_sign * self.uwb_theta
+
+        # 경로 방향 EMA: uwb theta 노이즈가 경로를 흔들지 않도록 2차 스무딩
+        if self._dir_ema is None:
+            self._dir_ema = raw_angle
+        else:
+            # 각도 wrap-around를 고려한 EMA
+            diff = raw_angle - self._dir_ema
+            while diff > math.pi:
+                diff -= 2.0 * math.pi
+            while diff < -math.pi:
+                diff += 2.0 * math.pi
+            self._dir_ema += self.dir_ema_alpha * diff
+
+        target_angle = self._dir_ema
 
         stamp = self.get_clock().now().to_msg()
         path = Path()

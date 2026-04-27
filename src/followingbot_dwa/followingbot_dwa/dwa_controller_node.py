@@ -65,6 +65,8 @@ class DWAControllerNode(Node):
         self.declare_parameter('loop_hz', 20.0)
         self.declare_parameter('data_timeout_s', 1.0)
         self.declare_parameter('obstacle_range_max_m', 3.5)
+        # 로봇 자체 프레임이 LiDAR에 잡히는 경우 이 거리 이하 포인트 무시
+        self.declare_parameter('obstacle_range_min_m', 0.0)
 
         # uwb_follower의 theta 부호 규칙 보정
         # 현재 설정: theta > 0 = 타겟이 오른쪽 → 오른쪽으로 조향(음수)
@@ -132,6 +134,7 @@ class DWAControllerNode(Node):
         self.loop_hz          = float(g('loop_hz').value)
         self.data_timeout_s   = float(g('data_timeout_s').value)
         self.obs_range_max    = float(g('obstacle_range_max_m').value)
+        self.obs_range_min    = float(g('obstacle_range_min_m').value)
         self.goal_theta_sign  = float(g('goal_theta_sign').value)
         self.tag_excl_half    = math.radians(float(g('tag_exclusion_half_angle_deg').value))
         self.tag_excl_margin  = float(g('tag_exclusion_dist_margin_m').value)
@@ -190,7 +193,7 @@ class DWAControllerNode(Node):
         pts = []
         angle = scan.angle_min
         for r in scan.ranges:
-            if scan.range_min < r < min(scan.range_max, self.obs_range_max):
+            if self.obs_range_min < r < min(scan.range_max, self.obs_range_max):
                 angle_diff = abs(self._wrap(angle - target_lidar_angle))
                 # 타겟 방향 ±half_angle 이내이고 타겟 거리 근처 → 사람 몸체 → 제외
                 if angle_diff < self.tag_excl_half and r < target_dist_limit:
@@ -323,10 +326,25 @@ class DWAControllerNode(Node):
         speed_cap = self._dist_to_speed_cap(self.goal_dist)
         best_v, best_s = self._dwa(obs, speed_cap)
 
+        if best_v > 0.01:
+            # 경로 찾음 → 최솟값 보장
+            best_v = max(best_v, self.min_speed_mps)
+            state = 'DWA_OK'
+        else:
+            # 경로 못 찾음 → 목표 방향으로 조향 + 저속 전진 시도
+            # 이전 조향에서 max_steer_rate 속도로 목표 방향 최대 조향까지 접근 (점프 방지)
+            goal_dir = self.goal_theta_sign * self.goal_theta
+            target_s = float(self.max_steer_rad) * (1.0 if goal_dir >= 0 else -1.0)
+            max_delta = self.max_steer_rate * (1.0 / self.loop_hz)
+            diff = target_s - self.current_steer
+            diff = max(-max_delta, min(max_delta, diff))
+            best_s = self.current_steer + diff
+            best_v = self.min_speed_mps
+            state = 'DWA_BLOCKED'
+
         self.current_speed = best_v
         self.current_steer = best_s
 
-        state = 'DWA_OK' if best_v > 0.01 else 'DWA_BLOCKED'
         self._publish(best_v, best_s, state)
 
         self.get_logger().info(
