@@ -72,16 +72,16 @@ def generate_launch_description():
 
                 {'stop_distance_m': 0.50},
                 {'slow_distance_m': 1.20},
-                {'max_speed_mps': 0.45},
+                {'max_speed_mps': 0.50},
                 {'min_speed_mps': 0.10},
 
-                {'turn_steer_rad': 0.35},
+                {'turn_steer_rad': 0.45},
                 {'anchor_spacing_m': 0.35},
                 {'x_bias_m': -0.16},
-                {'center_half_angle_rad': 0.25},
-                {'max_steer_angle_rad': 0.35},
+                {'center_half_angle_rad': 0.30},
+                {'max_steer_angle_rad': 0.45},
 
-                {'ema_alpha': 0.30},
+                {'ema_alpha': 0.12},
                 {'data_timeout_s': 20.0},
                 {'invalid_max_m': 10.0},
                 {'steer_sign': -1.0},
@@ -122,7 +122,10 @@ def generate_launch_description():
                 {'frame_id': 'odom'},
                 {'theta_sign': -1.0},
                 {'data_timeout_s': 1.0},
-                {'dir_ema_alpha': 0.25},
+                {'dir_ema_alpha': 0.15},
+                # 소각도 노이즈만 직진 처리, 실제 오프셋은 Stanley 가 교정
+                # center_half_angle_rad 보다 작게, 잔류 노이즈(~7-10deg) 보다 크게 설정
+                {'theta_deadband_rad': 0.20},
             ]
         ),
 
@@ -141,7 +144,7 @@ def generate_launch_description():
             parameters=[
                 {'wheelbase': 0.48},
                 {'stanley_k': 1.0},
-                {'max_steer_deg': 20.0},
+                {'max_steer_deg': 26.0},
 
                 {'use_dynamic_speed': True},
                 {'dynamic_speed_timeout': 0.5},
@@ -161,7 +164,7 @@ def generate_launch_description():
 
                 # ── Stanley + Pure Pursuit 횡방향 혼합 ─────────────────
                 # Pure Pursuit 전용 룩어헤드 인덱스 (낮을수록 가까운 점 참조)
-                {'pp_lookahead_idx': 3},
+                {'pp_lookahead_idx': 5},
                 # 속도 기반 자동 블렌딩 비활성화 → stanley_weight 고정값 사용
                 {'use_speed_blend': False},
                 # Stanley 가중치 (0.0=순수PP, 1.0=순수Stanley)
@@ -204,7 +207,7 @@ def generate_launch_description():
             parameters=[
                 {'wheelbase_m': 0.48},
                 {'max_speed_mps': 0.45},
-                {'max_steer_rad': 0.35},
+                {'max_steer_rad': 0.45},
                 {'robot_radius_m': 0.20},
 
                 {'max_accel_mps2': 0.30},
@@ -232,8 +235,8 @@ def generate_launch_description():
 
                 {'goal_theta_sign': -1.0},
 
-                {'tag_exclusion_half_angle_deg': 15.0},
-                {'tag_exclusion_dist_margin_m': 0.5},
+                {'tag_exclusion_half_angle_deg': 30.0},
+                {'tag_exclusion_dist_margin_m': 0.8},
             ]
         ),
 
@@ -258,18 +261,18 @@ def generate_launch_description():
                 {'enable_stuck_protection': False},
                 {'enable_narrow_slowdown': False},
                 # DWA 와 동일한 태그 착용자 제외 설정
-                {'tag_exclusion_half_angle_deg': 15.0},
-                {'tag_exclusion_dist_margin_m': 0.5},
+                {'tag_exclusion_half_angle_deg': 30.0},
+                {'tag_exclusion_dist_margin_m': 0.8},
                 # 로봇 프레임이 LiDAR에 잡히는 경우 제거 (0.21m에서 자체 감지됨)
                 {'scan_range_min_m': 0.30},
 
                 # ── 비상 정지 구역 ─────────────────────────────────
                 # 전방 이 거리 이내 장애물 → 즉시 정지 (태그 무관)
-                {'emstop_dist_m': 0.50},
+                {'emstop_dist_m': 0.65},
                 # 비상 정지 감지 전방 cone 폭 (좌우 합산 deg)
                 {'emstop_cone_deg': 20.0},
-                # scan_range_min_m 과 동일하게 설정 (로봇 프레임은 scan_range_min_m 으로 이미 필터링됨)
-                {'emstop_range_min_m': 0.30},
+                # 로봇 자체 프레임 제거용 최솟값 (유효 감지 구간: 0.50~0.65m)
+                {'emstop_range_min_m': 0.50},
 
                 # ── 협로 속도 감속 ─────────────────────────────────
                 # 좌/우 측면 여유가 이 이하이면 속도 감소 시작
@@ -316,7 +319,7 @@ def generate_launch_description():
                 {'left_invert': False},
                 {'right_invert': False},
 
-                {'max_steer_rad': 0.35},
+                {'max_steer_rad': 0.45},
                 {'debug_log': False},
             ]
         ),

@@ -31,6 +31,9 @@ class UwbPathGenNode(Node):
         self.declare_parameter('data_timeout_s', 1.0)
         # 경로 방향 theta EMA 알파 (낮을수록 강한 스무딩, uwb_follower의 theta EMA 이후 2차 필터)
         self.declare_parameter('dir_ema_alpha', 0.15)
+        # uwb_follower의 center_half_angle_rad 와 동일값 사용 권장
+        # 이 각도 이하면 theta=0 으로 처리 → 직진 경로 생성
+        self.declare_parameter('theta_deadband_rad', 0.0)
 
         self.path_length_m = float(self.get_parameter('path_length_m').value)
         self.n_waypoints = int(self.get_parameter('n_waypoints').value)
@@ -39,6 +42,7 @@ class UwbPathGenNode(Node):
         self.theta_sign = float(self.get_parameter('theta_sign').value)
         self.data_timeout_s = float(self.get_parameter('data_timeout_s').value)
         self.dir_ema_alpha = float(self.get_parameter('dir_ema_alpha').value)
+        self.theta_deadband = float(self.get_parameter('theta_deadband_rad').value)
 
         self.odom: Odometry | None = None
         self.uwb_theta = 0.0
@@ -91,9 +95,12 @@ class UwbPathGenNode(Node):
         robot_y = self.odom.pose.pose.position.y
         robot_yaw = self._yaw_from_odom()
 
+        # deadband: 소각도 노이즈를 직진으로 처리
+        effective_theta = 0.0 if abs(self.uwb_theta) < self.theta_deadband else self.uwb_theta
+
         # theta_sign 적용: uwb theta → 로봇 로컬 프레임 각도
         # → odom 프레임 목표 방향으로 변환
-        raw_angle = robot_yaw + self.theta_sign * self.uwb_theta
+        raw_angle = robot_yaw + self.theta_sign * effective_theta
 
         # 경로 방향 EMA: uwb theta 노이즈가 경로를 흔들지 않도록 2차 스무딩
         if self._dir_ema is None:
