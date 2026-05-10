@@ -77,11 +77,12 @@ def generate_launch_description():
 
                 {'turn_steer_rad': 0.45},
                 {'anchor_spacing_m': 0.35},
-                {'x_bias_m': -0.16},
+                {'x_bias_m': 0.175},
                 {'center_half_angle_rad': 0.30},
                 {'max_steer_angle_rad': 0.45},
 
                 {'ema_alpha': 0.12},
+                {'outlier_threshold_m': 0.70},  # 빠른 접근 시 outlier로 걸러지는 문제 방지
                 {'data_timeout_s': 20.0},
                 {'invalid_max_m': 10.0},
                 {'steer_sign': -1.0},
@@ -169,7 +170,7 @@ def generate_launch_description():
                 {'use_speed_blend': False},
                 # Stanley 가중치 (0.0=순수PP, 1.0=순수Stanley)
                 # 예: 0.3 → 0.3*Stanley + 0.7*PurePursuit
-                {'stanley_weight': 0.5},
+                {'stanley_weight': 0.3},
                 {'pp_blend_speed_low': 0.15},
                 {'pp_blend_speed_high': 0.35},
             ]
@@ -211,14 +212,14 @@ def generate_launch_description():
                 {'robot_radius_m': 0.20},
 
                 {'max_accel_mps2': 0.30},
-                {'max_steer_rate_rads': 0.80},
-                {'dw_time_s': 0.5},
+                {'max_steer_rate_rads': 0.50},
+                {'dw_time_s': 0.40},
 
                 {'predict_time_s': 1.2},
                 {'dt_sim_s': 0.1},
 
                 {'n_v_samples': 5},
-                {'n_steer_samples': 21},
+                {'n_steer_samples': 31},
 
                 {'w_heading': 0.3},
                 {'w_clearance': 0.5},
@@ -250,16 +251,17 @@ def generate_launch_description():
             output='screen',
             parameters=[
                 # 전방 장애물이 이 거리 이하이면 DWA 모드로 전환
-                {'obstacle_switch_m': 0.7},
+                {'obstacle_switch_m': 1.0},
                 # 이 거리 이상으로 복귀해야 Stanley 모드로 복귀 (히스테리시스)
-                {'obstacle_clear_m': 1.4},
+                {'obstacle_clear_m': 1.8},
                 # 전방 cone 각도 (좌우 합산, deg)
                 {'forward_cone_deg': 40.0},
                 {'loop_hz': 20.0},
                 {'data_timeout_s': 0.5},
                 {'enable_emstop': True},
                 {'enable_stuck_protection': False},
-                {'enable_narrow_slowdown': False},
+                {'enable_narrow_slowdown': True},
+                {'require_scan': True},
                 # DWA 와 동일한 태그 착용자 제외 설정
                 {'tag_exclusion_half_angle_deg': 30.0},
                 {'tag_exclusion_dist_margin_m': 0.8},
@@ -288,7 +290,7 @@ def generate_launch_description():
                 # 이 이하 실측 속도 = "정지 상태"
                 {'stuck_meas_threshold_mps': 0.04},
                 # 이 시간 이상 지속되면 끼임 판정 → 정지
-                {'stuck_timeout_s': 3.0},
+                {'stuck_timeout_s': 8.0},
             ]
         ),
 
@@ -312,7 +314,7 @@ def generate_launch_description():
                 {'tx_rate_hz': 100.0},
                 {'command_timeout_sec': 0.5},
                 {'max_erpm_per_sec': 800.0},
-                {'lpf_alpha': 0.20},
+                {'lpf_alpha': 0.35},
                 {'zero_erpm_band': 80.0},
                 {'max_erpm': 6000.0},
 

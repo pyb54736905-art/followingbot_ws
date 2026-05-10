@@ -29,6 +29,8 @@ setup(
             'uwb_path_gen_node = followingbot_bridge.uwb_path_gen_node:main',
             'monitor_node = followingbot_bridge.monitor_node:main',
             'cmd_arbitrator_node = followingbot_bridge.cmd_arbitrator_node:main',
+            'uwb_visualizer_node = followingbot_bridge.uwb_visualizer_node:main',
+            'lidar_uwb_visualizer_node = followingbot_bridge.lidar_uwb_visualizer_node:main',
         ],
     },
 )

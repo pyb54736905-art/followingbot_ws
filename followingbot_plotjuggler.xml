@@ -1,0 +1,107 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<root>
+ <tabbed_widget parent="main_window" name="Main Window">
+
+  <!-- ===== Tab 1: UWB 거리 + 주행궤적 ===== -->
+  <Tab containers="1" tab_name="UWB + 궤적">
+   <Container>
+    <DockSplitter orientation="|" count="2" sizes="0.450000;0.550000">
+
+     <DockArea name="UWB 거리 (a0 / a1 / avg)">
+      <plot flip_x="false" mode="TimeSeries" flip_y="false" style="Lines">
+       <range right="30.0" left="0.0" bottom="0.5" top="2.0"/>
+       <limitY/>
+       <curve name="/uwb_a0/data"       color="#aec7e8"/>
+       <curve name="/uwb_a1/data"       color="#ffbb78"/>
+       <curve name="/uwb_avg_dist/data" color="#2ca02c"/>
+      </plot>
+     </DockArea>
+
+     <DockArea name="주행 궤적 (odom XY)">
+      <plot flip_x="false" mode="XYPlot" flip_y="false" style="Lines">
+       <range right="5.0" left="-5.0" bottom="-5.0" top="5.0"/>
+       <limitY/>
+       <curve curve_x="/odom/pose/pose/position/x"
+              curve_y="/odom/pose/pose/position/y"
+              name="/odom/pose/pose/position/[x;y]"
+              color="#2ca02c"/>
+      </plot>
+     </DockArea>
+
+    </DockSplitter>
+   </Container>
+  </Tab>
+
+  <!-- ===== Tab 2: 속도 + 조향각 ===== -->
+  <Tab containers="1" tab_name="속도 + 조향각">
+   <Container>
+    <DockSplitter orientation="|" count="2" sizes="0.500000;0.500000">
+
+     <DockArea name="속도: 명령 vs 실제">
+      <plot flip_x="false" mode="TimeSeries" flip_y="false" style="Lines">
+       <range right="30.0" left="0.0" bottom="-0.1" top="0.8"/>
+       <limitY/>
+       <curve name="/target_speed/data"   color="#d62728"/>
+       <curve name="/measured_speed/data" color="#1f77b4"/>
+      </plot>
+     </DockArea>
+
+     <DockArea name="조향각 명령">
+      <plot flip_x="false" mode="TimeSeries" flip_y="false" style="Lines">
+       <range right="30.0" left="0.0" bottom="-0.5" top="0.5"/>
+       <limitY/>
+       <curve name="/target_steer/data" color="#ff7f0e"/>
+      </plot>
+     </DockArea>
+
+    </DockSplitter>
+   </Container>
+  </Tab>
+
+  <currentTabIndex index="0"/>
+ </tabbed_widget>
+
+ <use_relative_time_offset enabled="1"/>
+
+ <!-- ===== 플러그인 설정 ===== -->
+ <Plugins>
+  <plugin ID="DataLoad CSV">
+   <parameters time_axis="" delimiter="0"/>
+  </plugin>
+  <plugin ID="DataLoad MCAP"/>
+  <plugin ID="DataLoad ROS2 bags">
+   <use_header_stamp value="false"/>
+   <discard_large_arrays value="false"/>
+   <max_array_size value="200"/>
+   <boolean_strings_to_number value="true"/>
+   <remove_suffix_from_strings value="true"/>
+   <selected_topics value=""/>
+  </plugin>
+  <plugin ID="DataLoad ULog"/>
+  <plugin ID="ROS2 Topic Subscriber">
+   <use_header_stamp value="false"/>
+   <discard_large_arrays value="false"/>
+   <max_array_size value="700"/>
+   <boolean_strings_to_number value="true"/>
+   <remove_suffix_from_strings value="true"/>
+   <selected_topics value="/uwb_a0;/uwb_a1;/uwb_avg_dist;/uwb_position_zone;/target_speed;/target_steer;/measured_speed;/odom;/safety_state;/arbitrator_mode"/>
+  </plugin>
+  <plugin ID="UDP Server"/>
+  <plugin ID="WebSocket Server"/>
+  <plugin ID="ZMQ Subscriber"/>
+  <plugin ID="Fast Fourier Transform"/>
+  <plugin ID="Quaternion to RPY"/>
+  <plugin ID="Reactive Script Editor">
+   <library code=""/>
+   <scripts/>
+  </plugin>
+  <plugin ID="CSV Exporter"/>
+  <plugin ID="ROS2 Topic Re-Publisher"/>
+ </Plugins>
+
+ <previouslyLoaded_Datafiles/>
+ <previouslyLoaded_Streamer name="ROS2 Topic Subscriber"/>
+ <customMathEquations/>
+ <snippets/>
+
+</root>

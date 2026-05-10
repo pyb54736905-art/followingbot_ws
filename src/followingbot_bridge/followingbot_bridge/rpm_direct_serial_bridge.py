@@ -34,6 +34,7 @@ class RPMDirectSerialBridge(Node):
         self.declare_parameter('command_timeout_sec', 0.5)
         self.declare_parameter('max_erpm_per_sec', 800.0)
         self.declare_parameter('lpf_alpha', 0.25)
+        self.declare_parameter('speed_lpf_alpha', 0.30)
         self.declare_parameter('zero_erpm_band', 50.0)
         self.declare_parameter('max_erpm', 6000.0)
 
@@ -64,6 +65,7 @@ class RPMDirectSerialBridge(Node):
         self.command_timeout_sec = float(self.get_parameter('command_timeout_sec').value)
         self.max_erpm_per_sec = float(self.get_parameter('max_erpm_per_sec').value)
         self.lpf_alpha = float(self.get_parameter('lpf_alpha').value)
+        self.speed_lpf_alpha = float(self.get_parameter('speed_lpf_alpha').value)
         self.zero_erpm_band = float(self.get_parameter('zero_erpm_band').value)
         self.max_erpm = float(self.get_parameter('max_erpm').value)
 
@@ -78,6 +80,7 @@ class RPMDirectSerialBridge(Node):
         self.target_speed_mps = 0.0
         self.target_steer_rad = 0.0
         self.filtered_steer_rad = 0.0
+        self.filtered_meas_speed = None
         self.current_left_erpm = 0.0
         self.current_right_erpm = 0.0
         self.last_cmd_rx_time = self.get_clock().now()
@@ -198,8 +201,14 @@ class RPMDirectSerialBridge(Node):
                     msg_r.data = rrpm
                     self.pub_right_rpm.publish(msg_r)
 
+                    a = self.speed_lpf_alpha
+                    if self.filtered_meas_speed is None:
+                        self.filtered_meas_speed = meas_v
+                    else:
+                        self.filtered_meas_speed = a * meas_v + (1.0 - a) * self.filtered_meas_speed
+
                     msg_v = Float64()
-                    msg_v.data = meas_v
+                    msg_v.data = self.filtered_meas_speed
                     self.pub_measured_speed.publish(msg_v)
 
                 except Exception as e:

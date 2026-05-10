@@ -31,11 +31,13 @@ class UwbFollowerNode(Node):
         self.declare_parameter('ema_alpha', 0.35)
         self.declare_parameter('data_timeout_s', 20.0)
         self.declare_parameter('invalid_max_m', 10.0)
+        self.declare_parameter('outlier_threshold_m', 0.25)
 
         self.declare_parameter('steer_sign', 1.0)
         self.declare_parameter('warmup_samples', 10)
         # 이 각도 초과 시 정지 (태그가 너무 옆으로 벗어남)
         self.declare_parameter('stop_angle_rad', 1.57)
+        self.declare_parameter('steer_ema_alpha', 0.4)
 
         self.a0_topic = self.get_parameter('a0_topic').value
         self.a1_topic = self.get_parameter('a1_topic').value
@@ -57,14 +59,17 @@ class UwbFollowerNode(Node):
         self.ema_alpha = float(self.get_parameter('ema_alpha').value)
         self.data_timeout_s = float(self.get_parameter('data_timeout_s').value)
         self.invalid_max_m = float(self.get_parameter('invalid_max_m').value)
+        self.outlier_threshold_m = float(self.get_parameter('outlier_threshold_m').value)
         self.steer_sign = float(self.get_parameter('steer_sign').value)
         self.warmup_samples = int(self.get_parameter('warmup_samples').value)
         self.stop_angle_rad = float(self.get_parameter('stop_angle_rad').value)
+        self.steer_ema_alpha = float(self.get_parameter('steer_ema_alpha').value)
 
         self.a0_raw = None
         self.a1_raw = None
         self.a0_f = None
         self.a1_f = None
+        self.steer_f = None
         self.a0_count = 0
         self.a1_count = 0
         self.is_stopped = True
@@ -90,7 +95,7 @@ class UwbFollowerNode(Node):
 
     def a0_callback(self, msg: Float64):
         v = float(msg.data)
-        if self.is_valid(v):
+        if self.is_valid(v, self.a0_f):
             self.a0_raw = v
             self.a0_f = self.ema(self.a0_f, v)
             self.a0_count += 1
@@ -98,14 +103,19 @@ class UwbFollowerNode(Node):
 
     def a1_callback(self, msg: Float64):
         v = float(msg.data)
-        if self.is_valid(v):
+        if self.is_valid(v, self.a1_f):
             self.a1_raw = v
             self.a1_f = self.ema(self.a1_f, v)
             self.a1_count += 1
             self.last_a1_time = self.get_clock().now()
 
-    def is_valid(self, v: float) -> bool:
-        return (v > 0.01) and (v < self.invalid_max_m) and math.isfinite(v)
+    def is_valid(self, v: float, filtered: float) -> bool:
+        if not ((v > 0.01) and (v < self.invalid_max_m) and math.isfinite(v)):
+            return False
+        # 워밍업 전에는 outlier 체크 생략
+        if filtered is not None and abs(v - filtered) > self.outlier_threshold_m:
+            return False
+        return True
 
     def ema(self, prev, new):
         if prev is None:
@@ -229,7 +239,15 @@ class UwbFollowerNode(Node):
                 target_steer = -self.steer_sign * steer_mag
                 zone = 'LEFT'
 
-        self.publish_cmd(target_speed, target_steer)
+        if target_speed <= 0.01:
+            self.steer_f = None
+        else:
+            if self.steer_f is None:
+                self.steer_f = target_steer
+            else:
+                self.steer_f = self.steer_ema_alpha * target_steer + (1.0 - self.steer_ema_alpha) * self.steer_f
+
+        self.publish_cmd(target_speed, self.steer_f if self.steer_f is not None else 0.0)
         self.pub_zone.publish(String(data=zone))
 
         self.get_logger().info(

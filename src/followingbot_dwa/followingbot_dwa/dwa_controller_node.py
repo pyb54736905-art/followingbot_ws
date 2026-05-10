@@ -281,8 +281,16 @@ class DWAControllerNode(Node):
                     continue
 
                 # 점수 계산
-                # heading: 궤적 최종 방향이 목표 방향에 가까울수록 높음
-                head_score  = math.cos(goal_dir - traj[-1, 2])
+                # heading: 궤적 끝점에서 목표에 얼마나 가까워지는가 (goal approach)
+                # cos(goal_dir - final_heading) 방식은 회피 중 heading이 틀어지면
+                # 직진을 선호해 회피를 되돌리는 오동작 발생 → goal 거리 감소량으로 대체
+                ep_x, ep_y = traj[-1, 0], traj[-1, 1]
+                gx = self.goal_dist * math.cos(goal_dir)
+                gy = self.goal_dist * math.sin(goal_dir)
+                final_dist = math.sqrt((gx - ep_x) ** 2 + (gy - ep_y) ** 2)
+                approach = self.goal_dist - final_dist
+                max_approach = max(0.01, self.predict_time_s * self.max_speed_mps)
+                head_score  = max(-1.0, min(1.0, approach / max_approach))
                 # clearance: 장애물과 멀수록 높음 (최대 1.0)
                 clear_score = min(md / 2.0, 1.0)
                 # speed: 빠를수록 높음

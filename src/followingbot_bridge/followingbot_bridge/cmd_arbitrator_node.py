@@ -47,6 +47,8 @@ class CmdArbitratorNode(Node):
         self.declare_parameter('enable_emstop', True)
         self.declare_parameter('enable_stuck_protection', True)
         self.declare_parameter('enable_narrow_slowdown', True)
+        # False 시 LiDAR 없어도 UWB 명령으로 주행 (LiDAR 고장 시 임시 사용)
+        self.declare_parameter('require_scan', True)
 
         # ── 비상 정지 파라미터 ───────────────────────────────────────
         self.declare_parameter('emstop_dist_m', 0.25)
@@ -83,6 +85,7 @@ class CmdArbitratorNode(Node):
         self.enable_emstop     = bool(g('enable_emstop').value)
         self.enable_stuck      = bool(g('enable_stuck_protection').value)
         self.enable_narrow     = bool(g('enable_narrow_slowdown').value)
+        self.require_scan      = bool(g('require_scan').value)
 
         self.emstop_dist_m    = float(g('emstop_dist_m').value)
         self.emstop_cone_half = math.radians(float(g('emstop_cone_deg').value) * 0.5)
@@ -275,7 +278,7 @@ class CmdArbitratorNode(Node):
 
         angle = scan.angle_min
         for r in scan.ranges:
-            if scan.range_min < r < scan.range_max and not self._is_tag(angle, r):
+            if self.scan_range_min < r < scan.range_max and not self._is_tag(angle, r):
                 # 왼쪽: LiDAR +π/2 방향
                 if abs(self._wrap(angle - math.pi / 2)) < self.side_cone_half:
                     left_min = min(left_min, r)
@@ -295,7 +298,14 @@ class CmdArbitratorNode(Node):
     # ── 메인 루프 ─────────────────────────────────────────────────────
     def _loop(self):
         if self.scan is None or not self._fresh(self.last_scan_t):
-            self._publish(0.0, 0.0, 'NO_SCAN')
+            if self.require_scan:
+                self._publish(0.0, 0.0, 'NO_SCAN')
+                return
+            # require_scan=False: LiDAR 없어도 UWB 명령으로 통과
+            if not self._fresh(self.last_nominal_t):
+                self._publish(0.0, 0.0, 'UWB_TIMEOUT')
+                return
+            self._publish(self.nominal_speed, self.nominal_steer, 'UWB_ONLY')
             return
 
         # ── 1. 비상 정지 (최우선) ────────────────────────────────────
@@ -346,8 +356,10 @@ class CmdArbitratorNode(Node):
             )
             return
 
-        # ── 3. 협로 속도 감속 ────────────────────────────────────────
-        if self.enable_narrow:
+        # ── 3. 협로 속도 감속 (Stanley 모드에서만) ───────────────────
+        # DWA 모드에서는 DWA가 자체 속도 조절하므로 협로 감속 적용 안 함
+        # 적용 시 DWA 궤적 계산 속도와 실제 속도 불일치 → DWA_BLOCKED 오작동
+        if self.enable_narrow and not self.dwa_mode:
             narrow_factor = self._narrow_speed_factor()
             if narrow_factor < 1.0:
                 safety_str = 'NARROW_STOP' if narrow_factor == 0.0 else 'NARROW'
